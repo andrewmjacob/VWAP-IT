@@ -1,0 +1,4 @@
+name: wsb-mock
+mode: shadow
+source: wsb
+poll_interval_seconds: 60

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/tip/event/v1.json",
+  "title": "Canonical Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "schemaVersion": { "type": "string", "const": "v1" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "DISCLOSURE.FILING",
+        "SOCIAL.MENTIONS",
+        "MARKET.BAR",
+        "MODEL.INSIGHT",
+        "SYSTEM.HEALTH"
+      ]
+    },
+    "source": { "type": "string", "enum": ["edgar", "wsb", "market", "llm", "system"] },
+    "symbol": { "type": ["string", "null"], "pattern": "^[A-Z.\-]{1,16}$" },
+    "entityId": { "type": ["string", "null"] },
+    "tsEvent": { "type": "string", "format": "date-time" },
+    "tsIngested": { "type": "string", "format": "date-time" },
+    "dedupeKey": { "type": "string" },
+    "severity": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "payload": { "type": "object" },
+    "payloadRefs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "raw": { "type": ["string", "null"], "pattern": "^s3://" },
+        "normalized": { "type": ["string", "null"], "pattern": "^s3://" },
+        "enriched": { "type": ["string", "null"], "pattern": "^s3://" }
+      }
+    }
+  },
+  "required": [
+    "eventId",
+    "schemaVersion",
+    "eventType",
+    "source",
+    "tsEvent",
+    "tsIngested",
+    "dedupeKey",
+    "severity",
+    "payload",
+    "payloadRefs"
+  ]
+}

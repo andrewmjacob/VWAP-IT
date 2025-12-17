@@ -1,0 +1,29 @@
+# Copy this file to terraform.tfvars and customize
+
+aws_region   = "us-east-1"
+environment  = "dev"
+project_name = "tip"
+
+# VPC
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+# RDS - scale up for production
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+db_name              = "tip"
+db_username          = "tip_admin"
+
+# ECS - scale up for production
+connector_cpu           = 256   # 0.25 vCPU
+connector_memory        = 512   # 512 MB
+connector_desired_count = 1
+
+# Observability
+enable_metrics_alb    = false                # Enable ALB for Prometheus scraping
+metrics_allowed_cidrs = ["10.0.0.0/16"]      # CIDRs allowed to access metrics
+# alarm_sns_topic_arn = "arn:aws:sns:..."    # SNS topic for CloudWatch alarms
+
+# Optional: Slack webhook for alerts
+# slack_webhook_url = "https://hooks.slack.com/services/..."
+

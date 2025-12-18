@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterable, Dict, Any, Optional
@@ -12,12 +13,14 @@ from tip.db.session import get_session_sync
 from tip.db.models import Event, Outbox
 from tip.bus.sqs import SQSBus
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ConnectorConfig:
     name: str
     mode: str  # "shadow" or "emit"
-    source: Source
+    source: str  # e.g., "wsb", "reddit", etc.
     s3_bucket: str
     dsn: str
     sqs_queue_url: Optional[str] = None
@@ -46,7 +49,7 @@ class BaseConnector:
                 event_id = str(uuid.uuid4())
                 ts_event = normalized.get("tsEvent", now)
                 # Write raw to S3
-                raw_uri = self.s3.write_raw(self.cfg.source.value, ts_event, event_id, raw)
+                raw_uri = self.s3.write_raw(self.cfg.source, ts_event, event_id, raw)
 
                 # Build event
                 dedupe_key = normalized.get("dedupeKey") or hashlib.sha256(
@@ -105,6 +108,7 @@ class BaseConnector:
 
                 # Publish only via an outbox dispatcher elsewhere
             except Exception:
+                logger.exception("Error processing event")
                 stats["errors"] += 1
         return stats
 

@@ -100,3 +100,10 @@ variable "alarm_sns_topic_arn" {
   default     = ""
 }
 
+# GitHub Actions
+variable "github_repo" {
+  description = "GitHub repository in format 'owner/repo' for OIDC trust"
+  type        = string
+  default     = ""
+}
+

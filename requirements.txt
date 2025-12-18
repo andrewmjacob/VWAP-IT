@@ -1,0 +1,41 @@
+# Core
+pydantic==2.10.6
+pydantic-settings==2.7.1
+typer==0.12.5
+click==8.1.7
+
+# AWS (no s3fs - causes botocore conflicts, we use boto3 directly)
+boto3==1.36.14
+
+# Database
+sqlalchemy==2.0.37
+psycopg[binary,pool]==3.2.5
+alembic==1.14.1
+
+# Serialization
+ujson==5.10.0
+orjson==3.10.15
+jsonschema==4.23.0
+
+# Observability
+prometheus-client==0.21.1
+python-json-logger==3.2.1
+
+# Analytics
+duckdb==1.2.1
+pyarrow==19.0.0
+pandas==2.2.3
+
+# Web
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+
+# Integrations
+slack-sdk==3.34.0
+requests==2.32.3
+aiohttp==3.11.13
+
+# Utilities
+backoff==2.2.1
+tenacity==9.0.0
+cryptography==44.0.0

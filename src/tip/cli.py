@@ -118,6 +118,33 @@ def serve_metrics(
 
 
 @app.command()
+def migrate():
+    """Run database migrations."""
+    from pathlib import Path
+    from sqlalchemy import create_engine, text
+    
+    s = Settings()
+    if not s.PG_DSN:
+        typer.echo("Error: PG_DSN not configured", err=True)
+        raise typer.Exit(1)
+    
+    typer.echo(f"Connecting to database...")
+    engine = create_engine(s.PG_DSN)
+    
+    migrations_dir = Path(__file__).parent / "db" / "migrations"
+    migration_files = sorted(migrations_dir.glob("*.sql"))
+    
+    with engine.begin() as conn:
+        for migration_file in migration_files:
+            typer.echo(f"Running migration: {migration_file.name}")
+            sql = migration_file.read_text()
+            conn.execute(text(sql))
+            typer.echo(f"  ✓ {migration_file.name} completed")
+    
+    typer.echo("All migrations completed successfully!")
+
+
+@app.command()
 def run_connector_loop(
     mode: str = typer.Option("shadow", help="shadow or emit"),
     interval: int = typer.Option(60, help="Seconds between connector runs"),

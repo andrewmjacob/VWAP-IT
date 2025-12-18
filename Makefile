@@ -26,6 +26,15 @@ run-wsb:
 run-wsb-loop:
 	python -m tip.cli run-connector-loop --mode shadow --interval 60
 
+run-reddit:
+	python -m tip.cli run-reddit --mode shadow --interval 60 --subreddits "wallstreetbets,stocks"
+
+run-edgar:
+	python -m tip.cli run-edgar --mode shadow --interval 180 --ciks "320193,789019,1045810"
+
+lookup-cik:
+	@read -p "Enter company name or ticker: " query && python -m tip.cli lookup-cik "$$query"
+
 dispatch-outbox:
 	python -m tip.cli dispatch-outbox --batch-size 100 --interval 5
 
@@ -112,7 +121,7 @@ pause:
 	aws ecs update-service --cluster tip-dev --service tip-dev-outbox-dispatcher --desired-count 0 --no-cli-pager || true
 	aws ecs update-service --cluster tip-dev --service tip-dev-metrics --desired-count 0 --no-cli-pager || true
 	aws ecs update-service --cluster tip-dev --service tip-dev-reddit-connector --desired-count 0 --no-cli-pager || true
-	aws ecs update-service --cluster tip-dev --service tip-dev-event-consumer --desired-count 0 --no-cli-pager || true
+	aws ecs update-service --cluster tip-dev --service tip-dev-edgar-connector --desired-count 0 --no-cli-pager || true
 	@echo ""
 	@echo "✅ Services paused. Data preserved. Run 'make resume' to restart."
 
@@ -123,7 +132,7 @@ resume:
 	aws ecs update-service --cluster tip-dev --service tip-dev-outbox-dispatcher --desired-count 1 --no-cli-pager || true
 	aws ecs update-service --cluster tip-dev --service tip-dev-metrics --desired-count 1 --no-cli-pager || true
 	aws ecs update-service --cluster tip-dev --service tip-dev-reddit-connector --desired-count 1 --no-cli-pager || true
-	aws ecs update-service --cluster tip-dev --service tip-dev-event-consumer --desired-count 1 --no-cli-pager || true
+	aws ecs update-service --cluster tip-dev --service tip-dev-edgar-connector --desired-count 1 --no-cli-pager || true
 	@echo ""
 	@echo "✅ Services resumed."
 
@@ -182,7 +191,12 @@ help:
 	@echo "  make test      - Run tests"
 	@echo "  make lint      - Run linters"
 	@echo ""
+	@echo "Connectors:"
+	@echo "  make run-wsb      - Run WSB mock connector locally"
+	@echo "  make run-reddit   - Run Reddit connector locally"
+	@echo "  make run-edgar    - Run SEC EDGAR connector locally"
+	@echo "  make lookup-cik   - Look up CIK for a company"
+	@echo ""
 	@echo "Services:"
-	@echo "  make run-wsb   - Run WSB connector locally"
 	@echo "  make dispatch-outbox - Run outbox dispatcher"
 	@echo "  make serve-metrics   - Run metrics server"

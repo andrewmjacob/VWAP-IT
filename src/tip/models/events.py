@@ -17,6 +17,7 @@ class EventType(str, Enum):
 class Source(str, Enum):
     EDGAR = "edgar"
     WSB = "wsb"
+    REDDIT = "reddit"
     MARKET = "market"
     LLM = "llm"
     SYSTEM = "system"

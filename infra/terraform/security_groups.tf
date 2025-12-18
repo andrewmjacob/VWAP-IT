@@ -1,3 +1,30 @@
+# Security Group for VPC Endpoints
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${var.project_name}-${var.environment}-vpc-endpoints"
+  description = "Security group for VPC endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+    description = "HTTPS from VPC"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-vpc-endpoints-sg"
+  }
+}
+
 # Security Group for ECS Tasks (base - no cross-references)
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.project_name}-${var.environment}-ecs-tasks"

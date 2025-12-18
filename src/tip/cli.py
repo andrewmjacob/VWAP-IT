@@ -231,5 +231,158 @@ def run_reddit(
             time.sleep(interval)
 
 
+@app.command()
+def run_edgar(
+    mode: str = typer.Option("shadow", help="shadow or emit"),
+    interval: int = typer.Option(180, help="Seconds between polling cycles"),
+    ciks: str = typer.Option(None, help="Comma-separated CIKs to poll (e.g., '320193,789019')"),
+    watchlist: str = typer.Option(None, help="Path to JSON file with CIK list"),
+    max_rps: float = typer.Option(2.0, help="Max requests per second (capped at 8)"),
+    forms: str = typer.Option(None, help="Comma-separated form types to track (default: 8-K,10-Q,10-K,etc)"),
+    user_agent_name: str = typer.Option("TradingIntelPlatform", help="Name for SEC User-Agent header"),
+    user_agent_email: str = typer.Option("contact@example.com", help="Email for SEC User-Agent header"),
+    state_db: str = typer.Option("./edgar_state.db", help="Path to SQLite state database"),
+):
+    """Run the SEC EDGAR connector in a continuous loop.
+    
+    Polls data.sec.gov for new filings on a watchlist of CIKs.
+    Respects SEC rate limits (≤10 rps, we default to 2).
+    
+    Examples:
+        tip run-edgar --ciks "320193,789019"  # Apple and Microsoft
+        tip run-edgar --watchlist ./ciks.json --interval 300
+    """
+    from tip.connectors.edgar import EDGARConnector, EDGARConfig, normalize_cik, DEFAULT_FORMS_ALLOWLIST
+    
+    # Load CIK list
+    cik_list = []
+    if ciks:
+        cik_list = [normalize_cik(c.strip()) for c in ciks.split(",") if c.strip()]
+    elif watchlist:
+        import json as json_module
+        from pathlib import Path
+        wl_path = Path(watchlist)
+        if not wl_path.exists():
+            typer.echo(f"Error: Watchlist file not found: {watchlist}", err=True)
+            raise typer.Exit(1)
+        data = json_module.loads(wl_path.read_text())
+        if isinstance(data, list):
+            cik_list = [normalize_cik(c) for c in data]
+        elif isinstance(data, dict) and "ciks" in data:
+            cik_list = [normalize_cik(c) for c in data["ciks"]]
+        else:
+            typer.echo("Error: Watchlist must be a JSON array or object with 'ciks' key", err=True)
+            raise typer.Exit(1)
+    
+    if not cik_list:
+        typer.echo("Error: No CIKs provided. Use --ciks or --watchlist", err=True)
+        raise typer.Exit(1)
+    
+    # Parse forms allowlist
+    forms_list = DEFAULT_FORMS_ALLOWLIST.copy()
+    if forms:
+        forms_list = [f.strip() for f in forms.split(",") if f.strip()]
+    
+    s = Settings()
+    s3 = S3Client(S3Config(bucket=s.S3_BUCKET, region=s.AWS_REGION))
+    bus = None
+    if mode == "emit" and s.SQS_QUEUE_URL:
+        bus = SQSBus(SQSConfig(queue_url=s.SQS_QUEUE_URL, dlq_url=s.SQS_DLQ_URL, region=s.AWS_REGION))
+    
+    cfg = ConnectorConfig(
+        name="edgar",
+        mode=mode,
+        source="edgar",
+        s3_bucket=s.S3_BUCKET,
+        dsn=s.PG_DSN,
+        sqs_queue_url=s.SQS_QUEUE_URL,
+    )
+    
+    edgar_cfg = EDGARConfig(
+        ciks=cik_list,
+        user_agent_name=user_agent_name,
+        user_agent_email=user_agent_email,
+        max_rps=max_rps,
+        forms_allowlist=forms_list,
+        state_db_path=state_db,
+    )
+    
+    c = EDGARConnector(cfg, s3, bus, edgar_cfg=edgar_cfg)
+    
+    typer.echo(f"Starting EDGAR connector:")
+    typer.echo(f"  Mode: {mode}")
+    typer.echo(f"  Interval: {interval}s")
+    typer.echo(f"  CIKs: {len(cik_list)} companies")
+    typer.echo(f"  Max RPS: {edgar_cfg.max_rps}")
+    typer.echo(f"  Forms: {', '.join(forms_list[:5])}{'...' if len(forms_list) > 5 else ''}")
+    typer.echo(f"  User-Agent: {edgar_cfg.user_agent}")
+    
+    while True:
+        try:
+            stats = c.run_once()
+            typer.echo(f"[{datetime.now(timezone.utc).isoformat()}] {json.dumps(stats)}")
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            typer.echo("\nShutting down EDGAR connector")
+            break
+        except Exception as e:
+            typer.echo(f"Error during connector run: {e}", err=True)
+            time.sleep(interval)
+
+
+@app.command()
+def lookup_cik(
+    query: str = typer.Argument(..., help="Company name or ticker to search"),
+):
+    """Look up CIK for a company using SEC's company tickers API.
+    
+    Example:
+        tip lookup-cik AAPL
+        tip lookup-cik "Apple Inc"
+    """
+    import requests
+    
+    typer.echo(f"Searching SEC for: {query}")
+    
+    try:
+        response = requests.get(
+            "https://www.sec.gov/files/company_tickers.json",
+            headers={"User-Agent": "TradingIntelPlatform contact@example.com (cik-lookup)"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        query_upper = query.upper()
+        matches = []
+        
+        for entry in data.values():
+            ticker = entry.get("ticker", "").upper()
+            title = entry.get("title", "").upper()
+            cik = entry.get("cik_str", "")
+            
+            if query_upper == ticker or query_upper in title:
+                matches.append({
+                    "cik": f"{int(cik):010d}",
+                    "ticker": entry.get("ticker"),
+                    "name": entry.get("title"),
+                })
+        
+        if not matches:
+            typer.echo("No matches found.")
+            return
+        
+        typer.echo(f"\nFound {len(matches)} match(es):\n")
+        for m in matches[:20]:
+            typer.echo(f"  CIK: {m['cik']}  Ticker: {m['ticker']:<6}  Name: {m['name']}")
+        
+        if len(matches) > 20:
+            typer.echo(f"\n  ... and {len(matches) - 20} more")
+            
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

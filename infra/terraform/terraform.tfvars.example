@@ -1,29 +1,32 @@
-# Copy this file to terraform.tfvars and customize
+# TIP Infrastructure Configuration
+# ================================
 
+# Core
 aws_region   = "us-east-1"
 environment  = "dev"
 project_name = "tip"
 
-# VPC
-vpc_cidr           = "10.0.0.0/16"
-availability_zones = ["us-east-1a", "us-east-1b"]
+# ECS Resources
+connector_cpu    = 256   # 0.25 vCPU
+connector_memory = 512   # 512 MB
 
-# RDS - scale up for production
-db_instance_class    = "db.t3.micro"
-db_allocated_storage = 20
-db_name              = "tip"
-db_username          = "tip_admin"
+# Reddit Connector
+enable_reddit_connector = true
+reddit_subreddits       = "wallstreetbets,stocks,investing,options"
 
-# ECS - scale up for production
-connector_cpu           = 256   # 0.25 vCPU
-connector_memory        = 512   # 512 MB
-connector_desired_count = 1
+# EDGAR Connector (SEC Filings)
+enable_edgar_connector   = true
+edgar_ciks               = "320193,789019,1045810,1652044,1318605"  # AAPL, MSFT, NVDA, GOOGL, TSLA
+edgar_user_agent_name    = "TradingIntelPlatform"
+edgar_user_agent_email   = "contact@example.com"  # TODO: Update with real email
+edgar_poll_interval      = 180  # 3 minutes
+edgar_max_rps            = 2    # Conservative rate limit
 
-# Observability
-enable_metrics_alb    = false                # Enable ALB for Prometheus scraping
-metrics_allowed_cidrs = ["10.0.0.0/16"]      # CIDRs allowed to access metrics
-# alarm_sns_topic_arn = "arn:aws:sns:..."    # SNS topic for CloudWatch alarms
+# Optional features (disabled by default)
+enable_metrics_alb = false
+slack_webhook_url  = ""
+alarm_sns_topic_arn = ""
 
-# Optional: Slack webhook for alerts
-# slack_webhook_url = "https://hooks.slack.com/services/..."
+# GitHub Actions OIDC (for CI/CD)
+# github_repo = "your-org/your-repo"
 

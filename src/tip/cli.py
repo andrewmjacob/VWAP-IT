@@ -185,5 +185,51 @@ def run_connector_loop(
             time.sleep(interval)  # Back off on error
 
 
+@app.command()
+def run_reddit(
+    mode: str = typer.Option("shadow", help="shadow or emit"),
+    interval: int = typer.Option(60, help="Seconds between connector runs"),
+    subreddits: str = typer.Option("wallstreetbets", help="Comma-separated subreddits"),
+):
+    """Run the Reddit connector in a continuous loop.
+    
+    Fetches posts from specified subreddits (default: r/wallstreetbets)
+    and extracts stock mentions.
+    """
+    from tip.connectors.reddit import RedditConnector
+    
+    s = Settings()
+    s3 = S3Client(S3Config(bucket=s.S3_BUCKET, region=s.AWS_REGION))
+    bus = None
+    if mode == "emit" and s.SQS_QUEUE_URL:
+        bus = SQSBus(SQSConfig(queue_url=s.SQS_QUEUE_URL, dlq_url=s.SQS_DLQ_URL, region=s.AWS_REGION))
+    
+    cfg = ConnectorConfig(
+        name="reddit",
+        mode=mode,
+        source="reddit",
+        s3_bucket=s.S3_BUCKET,
+        dsn=s.PG_DSN,
+        sqs_queue_url=s.SQS_QUEUE_URL,
+    )
+    
+    subreddit_list = [s.strip() for s in subreddits.split(",")]
+    c = RedditConnector(cfg, s3, bus, subreddits=subreddit_list)
+    
+    typer.echo(f"Starting Reddit connector (mode={mode}, interval={interval}s, subreddits={subreddit_list})")
+    
+    while True:
+        try:
+            stats = c.run_once()
+            typer.echo(f"[{datetime.now(timezone.utc).isoformat()}] {json.dumps(stats)}")
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            typer.echo("\nShutting down Reddit connector")
+            break
+        except Exception as e:
+            typer.echo(f"Error during connector run: {e}", err=True)
+            time.sleep(interval)
+
+
 if __name__ == "__main__":
     app()

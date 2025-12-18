@@ -107,3 +107,53 @@ variable "github_repo" {
   default     = ""
 }
 
+# Reddit Connector
+variable "enable_reddit_connector" {
+  description = "Enable Reddit connector ECS service"
+  type        = bool
+  default     = false
+}
+
+variable "reddit_subreddits" {
+  description = "Comma-separated list of subreddits to monitor"
+  type        = string
+  default     = "wallstreetbets,stocks,investing"
+}
+
+# EDGAR Connector
+variable "enable_edgar_connector" {
+  description = "Enable SEC EDGAR connector ECS service"
+  type        = bool
+  default     = false
+}
+
+variable "edgar_ciks" {
+  description = "Comma-separated list of CIKs to monitor (e.g., '320193,789019' for AAPL,MSFT)"
+  type        = string
+  default     = ""
+}
+
+variable "edgar_user_agent_name" {
+  description = "Name for SEC User-Agent header (required by SEC)"
+  type        = string
+  default     = "TradingIntelPlatform"
+}
+
+variable "edgar_user_agent_email" {
+  description = "Email for SEC User-Agent header (required by SEC)"
+  type        = string
+  default     = "contact@example.com"
+}
+
+variable "edgar_poll_interval" {
+  description = "Seconds between EDGAR polling cycles"
+  type        = number
+  default     = 180
+}
+
+variable "edgar_max_rps" {
+  description = "Max requests per second to SEC (capped at 8, default 2)"
+  type        = number
+  default     = 2
+}
+

@@ -187,7 +187,7 @@ resource "aws_ecs_service" "metrics" {
     Name = "${var.project_name}-${var.environment}-metrics"
   }
 
-  depends_on = [aws_lb_listener.metrics]
+  # Terraform infers dependency from load_balancer.target_group_arn reference
 }
 
 # ============================================================================
